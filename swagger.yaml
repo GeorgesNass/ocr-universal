@@ -1,0 +1,211 @@
+openapi: 3.0.3
+info:
+  title: OCR Universal API
+  version: "1.1.0"
+  description: |
+    Universal OCR API — supports single file, multiple files, or entire folder processing.  
+    The OCR engine used (`Tesseract`, `EasyOCR`, `PaddleOCR`, etc.) is defined in `.env` through the variable `OCR_ENGINE`.
+
+    ### 📁 Supported File Types
+
+    #### 🖼️ Image Formats
+    - .jpg, .jpeg, .png, .bmp, .tiff, .tif, .gif, .webp, .svg *(converted to bitmap before OCR)*
+
+    #### 📄 PDF Formats
+    - .pdf *(scanned or text-based)*
+
+    #### 📝 Microsoft Office Documents
+    - .doc, .docx, .xls, .xlsx, .ppt, .pptx, .rtf
+
+    #### 📑 OpenDocument Formats
+    - .odt, .ods, .odp
+
+    #### 💾 Text-Based Files
+    - .html, .htm
+
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://your_service_name_on_the_cloud.com
+    description: Cloud HTTPS deployment
+
+security:
+  - api_key: []
+
+tags:
+  - name: health
+    description: Health and monitoring endpoints
+  - name: convert
+    description: OCR conversion endpoints
+
+paths:
+  /healthcheck:
+    get:
+      tags: [health]
+      summary: API health check
+      description: Simple route to verify that the API is running and responsive.
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /convert:
+    post:
+      tags: [convert]
+      summary: Convert a single file to text
+      description: Upload **one** file and receive the extracted text content.
+      security:
+        - api_key: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Successful conversion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConvertResponse"
+        "400":
+          description: Bad request or unsupported file type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /convert_batch:
+    post:
+      tags: [convert]
+      summary: Convert multiple files to text (batch mode)
+      description: Upload multiple files in a single request and get an array of OCR results.
+      security:
+        - api_key: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "200":
+          description: Array of converted files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConvertResponse"
+        "400":
+          description: Invalid request or no valid files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /convert_folder:
+    post:
+      tags: [convert]
+      summary: Convert all supported files inside a specified server folder
+      description: |
+        Process all files within a given folder on the server.  
+        ⚠️ Use with caution — intended for internal or secured environments.
+      security:
+        - api_key: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder_path]
+              properties:
+                folder_path:
+                  type: string
+                  example: "data/input_docs"
+      responses:
+        "200":
+          description: Folder processed successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConvertResponse"
+        "400":
+          description: Invalid path or unreadable directory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal processing error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        message:
+          type: string
+          example: "OCR Universal API is running."
+
+    ConvertResponse:
+      type: object
+      properties:
+        file_name:
+          type: string
+          example: document.pdf
+        text:
+          type: string
+          example: "Extracted text content..."
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "Unsupported file type or internal error"
