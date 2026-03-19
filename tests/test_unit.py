@@ -13,7 +13,6 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 ## Add src/ to Python path (important if tests are outside src/)
-sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 from src.service import app
 
 ## ============================================================
@@ -133,3 +132,32 @@ def test_convert_folder(tmp_path):
     assert len(data) == 2
     assert any("document 1" in item["text"] for item in data)
     assert any("document 2" in item["text"] for item in data)
+
+def test_convert_invalid_file():
+    """
+        Test invalid file upload
+
+        Expected:
+            - Status code: 400 or 422
+    """
+
+    response = client.post(
+        "/convert",
+        files={"file": ("file.exe", io.BytesIO(b"bad"), "application/octet-stream")}
+    )
+
+    assert response.status_code in (400, 422)
+    
+def test_convert_folder_empty(tmp_path):
+    """
+        Test empty folder
+
+        Expected:
+            - Status code: 200
+            - Empty list
+    """
+
+    response = client.post("/convert_folder", params={"folder_path": str(tmp_path)})
+
+    assert response.status_code == 200
+    assert response.json() == []

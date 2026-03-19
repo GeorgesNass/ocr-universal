@@ -62,7 +62,7 @@ ocr-universal/
 ├── logs/                              ## Application logs
 │
 ├── tests/
-│   └── test_service.py                ## API unit tests
+│   └── test_unit.py                   ## API unit tests
 │
 └── src/
 	├── service.py                     ## FastAPI routes and API logic
