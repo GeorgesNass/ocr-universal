@@ -1,9 +1,6 @@
-## --- Core API ---
 fastapi
 uvicorn
 pydantic
-
-## --- OCR & File Processing ---
 pytesseract
 pdf2image
 PyPDF2
@@ -14,12 +11,8 @@ html2text
 python-docx
 python-pptx
 xlrd==1.2.0
-
-## --- Google Cloud Vision OCR ---
 google-cloud-vision
 google-auth
 grpcio
-
-## --- Utilities ---
 psutil
 chardet

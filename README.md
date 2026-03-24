@@ -65,9 +65,17 @@ ocr-universal/
 │   └── test_unit.py                   ## API unit tests
 │
 └── src/
-	├── service.py                     ## FastAPI routes and API logic
-	│
-	├── ocr/                           ## OCR extraction modules per document type
+    ├── pipeline.py                    ## End-to-end orchestration
+    │
+    ├── core/
+    │   ├── auth.py                    ## JWT auth: tokens, login, refresh, dependencies
+    │   ├── security.py                ## RBAC, middleware, permissions, request security	
+    │   ├── schema.py                  ## Pydantic request/response models
+    │   ├── config.py                  ## Environment variable management and path resolution
+    │   ├── errors.py                  ## Centralized custom exception definitions
+    │   └── service.py          	   ## FastAPI routes and API logic
+    │
+	├── ocr/                           
 	│   ├── docx_doc_to_text.py        ## DOC / DOCX extraction
 	│   ├── html_to_text.py            ## HTML extraction
 	│   ├── odt_rtf_to_text.py         ## ODT / RTF extraction
