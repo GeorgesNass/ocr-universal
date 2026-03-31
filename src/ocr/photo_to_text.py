@@ -40,6 +40,7 @@ from src.utils.constants import (
     USE_TESSERACT,
     USE_GOOGLE_VISION
 )
+from src.core.config import get_config
 
 ## ============================================================
 ## LOGGER
@@ -65,8 +66,21 @@ def _init_google_vision_client() -> Optional["ImageAnnotatorClient"]:
 
     ## Instantiate client (uses env var GOOGLE_APPLICATION_CREDENTIALS)
     try:
+    
+        ## LOAD GCP CREDENTIALS FROM CONFIG
+        try:
+            config = get_config()
+
+            ## set env var for Google SDK
+            if config.secrets.google_application_credentials:
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = config.secrets.google_application_credentials
+
+        except Exception as exc:
+            logger.warning(f"Failed to load GCP credentials from config: {exc}")
+            
         client = vision.ImageAnnotatorClient()
         logger.info("Google Vision client initialized.")
+        
         return client
     except Exception as exc:
         logger.error(f"Cannot init Google Vision client: {exc}")
