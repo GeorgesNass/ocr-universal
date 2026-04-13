@@ -13,6 +13,7 @@
 #   - run FastAPI service
 #   - validate configuration
 #   - run dry-run mode
+#   - data consistency integrated automatically in pipeline
 ###############################################################################
 
 set -euo pipefail
@@ -49,10 +50,10 @@ while true; do
   echo "Select an action:"
   echo " 1) Validate config"
   echo " 2) Dry-run"
-  echo " 3) Convert one file"
-  echo " 4) Convert one directory"
-  echo " 5) Convert one file and print output"
-  echo " 6) Convert one directory and print output"
+  echo " 3) Convert one file (with data consistency)"
+  echo " 4) Convert one directory (with data consistency)"
+  echo " 5) Convert one file and print output (with data consistency)"
+  echo " 6) Convert one directory and print output (with data consistency)"
   echo " 7) Run tests"
   echo " 8) Run API"
   echo " 9) Show help"
@@ -64,14 +65,17 @@ while true; do
 
   case "$choice" in
     1)
+      ## Validate configuration
       run_python main.py --validate-config
       pause
       ;;
     2)
+      ## Dry-run mode
       run_python main.py --dry-run
       pause
       ;;
     3)
+      ## Convert single file (consistency automatically applied in main.py)
       read -rp "Input file path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -79,6 +83,7 @@ while true; do
       pause
       ;;
     4)
+      ## Convert directory (consistency automatically applied in main.py)
       read -rp "Input directory path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -86,6 +91,7 @@ while true; do
       pause
       ;;
     5)
+      ## Convert file + print output (consistency applied)
       read -rp "Input file path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -93,6 +99,7 @@ while true; do
       pause
       ;;
     6)
+      ## Convert directory + print output (consistency applied)
       read -rp "Input directory path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -100,18 +107,22 @@ while true; do
       pause
       ;;
     7)
+      ## Run unit tests
       run_python main.py --mode test
       pause
       ;;
     8)
+      ## Launch FastAPI service
       run_python main.py --mode api
       pause
       ;;
     9)
+      ## Show CLI help
       run_python main.py --help
       pause
       ;;
     10)
+      ## Show version
       run_python main.py --version
       pause
       ;;

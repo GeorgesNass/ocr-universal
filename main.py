@@ -25,6 +25,9 @@ from src.ocr import (
     photo_to_text,
     odt_rtf_to_text,
 )
+
+from src.core.data_consistency import run_data_consistency
+
 from src.utils.logging_utils import get_logger
 from src.utils.ocr_utils import get_data_dirs, is_allowed_file, generate_unique_filename
 from src.utils.constants import PRUNE_AFTER_PROCESS
@@ -100,6 +103,35 @@ def process_single_file(file_path: Path, output_dir: Path, print_output: bool = 
         logger.exception("Error extracting text: %s", exc)
         return
 
+    ## ============================================================
+    ## DATA CONSISTENCY CHECK
+    ## ============================================================
+
+    ## Build minimal data payload
+    data = {
+        "text": text,
+        "file_name": file_path.name,
+    }
+
+    ## Run consistency check
+    consistency_result = run_data_consistency(
+        data=data,
+        file_path=file_path,
+        strict=False,
+    )
+
+    ## Log global consistency result
+    logger.info(f"Consistency OK: {consistency_result['is_consistent']}")
+
+    ## Log detected issues if any
+    if not consistency_result["is_consistent"]:
+        logger.warning(f"Issues detected: {consistency_result['issues']}")
+
+    ## Stop processing if critical errors detected
+    if consistency_result["errors"] > 0:
+        logger.error("Skipping file due to consistency errors")
+        return
+             
     if print_output:
         print(f"\n===== {file_path.name} =====\n{text}")
     else:

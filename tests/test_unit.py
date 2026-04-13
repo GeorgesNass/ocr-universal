@@ -9,8 +9,11 @@ __desc__ = "Unit tests for FastAPI OCR service endpoints (/healthcheck, /convert
 
 import io
 import sys
+import pytest
+
 from pathlib import Path
 from fastapi.testclient import TestClient
+from src.core.data_consistency import run_data_consistency
 
 ## Add src/ to Python path (important if tests are outside src/)
 from src.service import app
@@ -161,3 +164,127 @@ def test_convert_folder_empty(tmp_path):
 
     assert response.status_code == 200
     assert response.json() == []
+    
+## ============================================================
+## DATA CONSISTENCY TESTS
+## ============================================================
+def test_data_consistency_valid():
+    """
+        Test valid data consistency
+
+        Expected:
+            - is_consistent = True
+            - no errors
+    """
+
+    data = {
+        "text": "valid text content",
+        "id": 1,
+        "amount": 100,
+    }
+
+    result = run_data_consistency(data=data)
+
+    assert result["is_consistent"] is True
+    assert result["errors"] == 0
+
+def test_data_consistency_empty_text():
+    """
+        Test empty text case
+
+        Expected:
+            - is_consistent = False
+            - at least 1 error
+    """
+
+    data = {
+        "text": "",
+    }
+
+    result = run_data_consistency(data=data)
+
+    assert result["is_consistent"] is False
+    assert result["errors"] > 0
+
+def test_data_consistency_type_error():
+    """
+        Test invalid type
+
+        Expected:
+            - error detected
+    """
+
+    data = {
+        "text": 123,  ## invalid type
+    }
+
+    result = run_data_consistency(data=data)
+
+    assert result["is_consistent"] is False
+
+def test_data_consistency_business_rule():
+    """
+        Test business rule violation (negative amount)
+
+        Expected:
+            - error detected
+    """
+
+    data = {
+        "text": "valid text",
+        "amount": -10,
+    }
+
+    result = run_data_consistency(data=data)
+
+    assert result["is_consistent"] is False
+
+def test_data_consistency_cross_source():
+    """
+        Test cross-source mismatch
+
+        Expected:
+            - warning detected
+    """
+
+    data = {
+        "text": "hello",
+        "metadata_text": "different",
+    }
+
+    result = run_data_consistency(data=data)
+
+    assert result["warnings"] > 0
+
+def test_data_consistency_duplicates():
+    """
+        Test duplicate detection
+
+        Expected:
+            - warning detected
+    """
+
+    data = {
+        "text": "abc",
+        "field1": "dup",
+        "field2": "dup",
+    }
+
+    result = run_data_consistency(data=data)
+
+    assert result["warnings"] > 0
+
+def test_data_consistency_strict_mode():
+    """
+        Test strict mode behavior
+
+        Expected:
+            - exception raised
+    """
+
+    data = {
+        "text": "",
+    }
+
+    with pytest.raises(Exception):
+        run_data_consistency(data=data, strict=True)
