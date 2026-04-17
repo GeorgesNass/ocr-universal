@@ -14,6 +14,7 @@ import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
 from src.core.data_consistency import run_data_consistency
+from src.core.data_quality import run_data_quality
 
 ## Add src/ to Python path (important if tests are outside src/)
 from src.service import app
@@ -288,3 +289,73 @@ def test_data_consistency_strict_mode():
 
     with pytest.raises(Exception):
         run_data_consistency(data=data, strict=True)
+        
+## ============================================================
+## DATA QUALITY TESTS
+## ============================================================
+def test_data_quality_valid():
+    """
+        Test valid data quality
+
+        Expected:
+            - is_valid = True
+            - no errors
+    """
+
+    data = {
+        "value": 10,
+        "value2": 12,
+    }
+
+    result = run_data_quality(data=data)
+
+    assert result["is_valid"] is True
+    assert result["errors"] == 0
+
+def test_data_quality_outlier():
+    """
+        Test anomaly detection
+
+        Expected:
+            - warning detected
+    """
+
+    data = {
+        "value": 10,
+        "value2": 1000,  ## outlier
+    }
+
+    result = run_data_quality(data=data)
+
+    assert result["warnings"] > 0
+
+def test_data_quality_invalid_values():
+    """
+        Test NaN / inf detection
+
+        Expected:
+            - error detected
+    """
+
+    data = {
+        "value": float("nan"),
+    }
+
+    result = run_data_quality(data=data)
+
+    assert result["errors"] > 0
+
+def test_data_quality_strict_mode():
+    """
+        Test strict mode behavior
+
+        Expected:
+            - exception raised
+    """
+
+    data = {
+        "value": float("nan"),
+    }
+
+    with pytest.raises(Exception):
+        run_data_quality(data=data, strict=True)

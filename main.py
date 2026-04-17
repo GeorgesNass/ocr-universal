@@ -27,7 +27,8 @@ from src.ocr import (
 )
 
 from src.core.data_consistency import run_data_consistency
-
+from src.core.data_quality import run_data_quality
+from src.core.config import get_config
 from src.utils.logging_utils import get_logger
 from src.utils.ocr_utils import get_data_dirs, is_allowed_file, generate_unique_filename
 from src.utils.constants import PRUNE_AFTER_PROCESS
@@ -103,10 +104,7 @@ def process_single_file(file_path: Path, output_dir: Path, print_output: bool = 
         logger.exception("Error extracting text: %s", exc)
         return
 
-    ## ============================================================
     ## DATA CONSISTENCY CHECK
-    ## ============================================================
-
     ## Build minimal data payload
     data = {
         "text": text,
@@ -131,7 +129,26 @@ def process_single_file(file_path: Path, output_dir: Path, print_output: bool = 
     if consistency_result["errors"] > 0:
         logger.error("Skipping file due to consistency errors")
         return
-             
+     
+    ## DATA QUALITY CHECK
+    config = get_config()
+
+    if config.runtime.anomaly_detection_enabled:
+
+        quality_result = run_data_quality(
+            data=data,
+            method=config.runtime.anomaly_method,
+            z_threshold=config.runtime.z_threshold,
+            iqr_multiplier=config.runtime.iqr_multiplier,
+            strict=config.runtime.anomaly_strict_mode,
+        )
+
+        logger.info(f"Quality score: {quality_result['score']}")
+
+        if quality_result["errors"] > 0:
+            logger.error("Skipping file due to quality errors")
+            return
+        
     if print_output:
         print(f"\n===== {file_path.name} =====\n{text}")
     else:

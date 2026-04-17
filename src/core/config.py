@@ -160,6 +160,11 @@ class RuntimeConfig:
             csv_separator: Output CSV separator
             csv_extension: Default text export extension
             allowed_origins: Allowed origins for future API usage
+            anomaly_detection_enabled: Enable anomaly detection
+            anomaly_method: Detection method (zscore / iqr)
+            z_threshold: Z-score threshold
+            iqr_multiplier: IQR multiplier
+            anomaly_strict_mode: Strict validation mode            
     """
 
     environment: str
@@ -175,6 +180,11 @@ class RuntimeConfig:
     csv_separator: str
     csv_extension: str
     allowed_origins: list[str]
+    anomaly_detection_enabled: bool
+    anomaly_method: str
+    z_threshold: float
+    iqr_multiplier: float
+    anomaly_strict_mode: bool
 
 @dataclass(frozen=True)
 class OcrConfig:
@@ -373,10 +383,19 @@ def _get_env_bool(name: str, default: bool) -> bool:
     if raw in {"false", "0", "no", "n", "off"}:
         return False
     raise ConfigurationError(f"Invalid boolean value for {name}: {raw}")
-    
+
+## ============================================================
+## ENV INT PARSER
+## ============================================================
+
 def _get_env_int(name: str, default: int) -> int:
     """
         Parse an integer environment variable
+
+        High-level workflow:
+            1) Read raw environment value
+            2) Attempt int conversion
+            3) Raise explicit error if invalid
 
         Args:
             name: Environment variable name
@@ -386,12 +405,58 @@ def _get_env_int(name: str, default: int) -> int:
             Parsed integer value
     """
 
-    ## Parse integer strictly
-    try:
-        return int(_get_env(name, str(default)))
-    except (TypeError, ValueError) as exc:
-        raise ConfigurationError(f"{name} must be an integer") from exc
+    raw = None
 
+    try:
+        ## read raw value
+        raw = _get_env(name, str(default))
+
+        ## convert to int
+        value = int(raw)
+
+        return value
+
+    except (TypeError, ValueError) as exc:
+        logger.error(f"Invalid integer value for {name}: {raw}")
+        raise ConfigurationError(f"{name} must be an integer") from exc
+        
+
+## ============================================================
+## ENV FLOAT PARSER
+## ============================================================
+
+def _get_env_float(name: str, default: float) -> float:
+    """
+        Parse a float environment variable
+
+        High-level workflow:
+            1) Read raw environment value
+            2) Attempt float conversion
+            3) Raise explicit error if invalid
+
+        Args:
+            name: Environment variable name
+            default: Default fallback value
+
+        Returns:
+            Parsed float value
+    """
+
+    raw = None
+
+    try:
+        ## read raw value
+        raw = _get_env(name, str(default))
+
+        ## convert to float
+        value = float(raw)
+
+        return value
+
+    except (TypeError, ValueError) as exc:
+        logger.error(f"Invalid float value for {name}: {raw}")
+        raise ConfigurationError(f"{name} must be a float") from exc
+        
 def _get_env_list(name: str, default: Optional[list[str]] = None, *, separator: str = ",") -> list[str]:
     """
         Parse a list-like environment variable
@@ -661,6 +726,20 @@ def _validate_config(config: AppConfig) -> None:
     if not config.formats.encodings_to_try:
         raise ConfigurationError("ENCODINGS_TO_TRY cannot be empty")
 
+    ## validate anomaly parameters
+    if config.runtime.z_threshold <= 0:
+        raise ConfigurationError("Z_THRESHOLD must be > 0")
+
+    if config.runtime.iqr_multiplier <= 0:
+        raise ConfigurationError("IQR_MULTIPLIER must be > 0")
+
+    if config.runtime.anomaly_method not in {"zscore", "iqr"}:
+        raise ConfigurationError("ANOMALY_METHOD must be 'zscore' or 'iqr'")
+
+    ## validate anomaly toggle coherence
+    if config.runtime.anomaly_detection_enabled is False:
+        logger.warning("Anomaly detection is disabled")     
+        
 ## ============================================================
 ## EXPORT HELPERS
 ## ============================================================
@@ -784,6 +863,11 @@ def get_config() -> AppConfig:
         csv_separator=_get_env("CSV_SEPARATOR", DEFAULT_CSV_SEPARATOR),
         csv_extension=_get_env("CSV_EXTENSION", DEFAULT_CSV_EXTENSION),
         allowed_origins=_get_env_list("ALLOWED_ORIGINS", ["*"]),
+        anomaly_detection_enabled=_get_env_bool("ANOMALY_DETECTION_ENABLED", True),
+        anomaly_method=_get_env("ANOMALY_METHOD", "zscore"),
+        z_threshold=_get_env_float("Z_THRESHOLD", 3.0),
+        iqr_multiplier=_get_env_float("IQR_MULTIPLIER", 1.5),
+        anomaly_strict_mode=_get_env_bool("ANOMALY_STRICT_MODE", False),
     )
 
     ## Build OCR section
@@ -827,6 +911,7 @@ def get_config() -> AppConfig:
         extra={
             "system_name": SYSTEM_NAME, "is_windows": IS_WINDOWS, "is_linux": IS_LINUX, "is_macos": IS_MACOS,
             "supported_ocr_engines": list(SUPPORTED_OCR_ENGINES),
+            "anomaly_methods_supported": ["zscore", "iqr"],
         },
     )
 

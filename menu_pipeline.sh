@@ -13,7 +13,7 @@
 #   - run FastAPI service
 #   - validate configuration
 #   - run dry-run mode
-#   - data consistency integrated automatically in pipeline
+#   - data consistency + data quality integrated automatically in pipeline
 ###############################################################################
 
 set -euo pipefail
@@ -50,10 +50,10 @@ while true; do
   echo "Select an action:"
   echo " 1) Validate config"
   echo " 2) Dry-run"
-  echo " 3) Convert one file (with data consistency)"
-  echo " 4) Convert one directory (with data consistency)"
-  echo " 5) Convert one file and print output (with data consistency)"
-  echo " 6) Convert one directory and print output (with data consistency)"
+  echo " 3) Convert one file (with data consistency + quality)"
+  echo " 4) Convert one directory (with data consistency + quality)"
+  echo " 5) Convert one file and print output (with consistency + quality)"
+  echo " 6) Convert one directory and print output (with consistency + quality)"
   echo " 7) Run tests"
   echo " 8) Run API"
   echo " 9) Show help"
@@ -75,7 +75,7 @@ while true; do
       pause
       ;;
     3)
-      ## Convert single file (consistency automatically applied in main.py)
+      ## Convert single file (consistency + quality in main.py)
       read -rp "Input file path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -83,7 +83,7 @@ while true; do
       pause
       ;;
     4)
-      ## Convert directory (consistency automatically applied in main.py)
+      ## Convert directory (consistency + quality in main.py)
       read -rp "Input directory path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -91,7 +91,7 @@ while true; do
       pause
       ;;
     5)
-      ## Convert file + print output (consistency applied)
+      ## Convert file + print output (consistency + quality)
       read -rp "Input file path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -99,7 +99,7 @@ while true; do
       pause
       ;;
     6)
-      ## Convert directory + print output (consistency applied)
+      ## Convert directory + print output (consistency + quality)
       read -rp "Input directory path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
