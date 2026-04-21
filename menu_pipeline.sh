@@ -3,7 +3,7 @@
 ###############################################################################
 # OCR-Universal - Pipeline Menu
 # Author: Georges Nassopoulos
-# Version: 1.0.0
+# Version: 1.1.0
 # Description:
 #   CLI menu to run the main OCR Universal workflows:
 #   - convert one file into extracted text
@@ -13,7 +13,8 @@
 #   - run FastAPI service
 #   - validate configuration
 #   - run dry-run mode
-#   - data consistency + data quality integrated automatically in pipeline
+#   - data consistency + data quality integrated automatically
+#   - data drift detection
 ###############################################################################
 
 set -euo pipefail
@@ -50,14 +51,16 @@ while true; do
   echo "Select an action:"
   echo " 1) Validate config"
   echo " 2) Dry-run"
-  echo " 3) Convert one file (with data consistency + quality)"
-  echo " 4) Convert one directory (with data consistency + quality)"
-  echo " 5) Convert one file and print output (with consistency + quality)"
-  echo " 6) Convert one directory and print output (with consistency + quality)"
+  echo " 3) Convert one file (consistency + quality)"
+  echo " 4) Convert one directory (consistency + quality)"
+  echo " 5) Convert one file and print output"
+  echo " 6) Convert one directory and print output"
   echo " 7) Run tests"
   echo " 8) Run API"
-  echo " 9) Show help"
-  echo "10) Show version"
+  echo " 9) Run data drift"
+  echo "10) Convert + drift pipeline"
+  echo "11) Show help"
+  echo "12) Show version"
   echo " 0) Exit"
   echo ""
 
@@ -65,17 +68,14 @@ while true; do
 
   case "$choice" in
     1)
-      ## Validate configuration
       run_python main.py --validate-config
       pause
       ;;
     2)
-      ## Dry-run mode
       run_python main.py --dry-run
       pause
       ;;
     3)
-      ## Convert single file (consistency + quality in main.py)
       read -rp "Input file path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -83,7 +83,6 @@ while true; do
       pause
       ;;
     4)
-      ## Convert directory (consistency + quality in main.py)
       read -rp "Input directory path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -91,7 +90,6 @@ while true; do
       pause
       ;;
     5)
-      ## Convert file + print output (consistency + quality)
       read -rp "Input file path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -99,7 +97,6 @@ while true; do
       pause
       ;;
     6)
-      ## Convert directory + print output (consistency + quality)
       read -rp "Input directory path [default: ./data/input]: " INPUT_PATH
       INPUT_PATH="${INPUT_PATH:-./data/input}"
 
@@ -107,22 +104,40 @@ while true; do
       pause
       ;;
     7)
-      ## Run unit tests
       run_python main.py --mode test
       pause
       ;;
     8)
-      ## Launch FastAPI service
       run_python main.py --mode api
       pause
       ;;
     9)
-      ## Show CLI help
-      run_python main.py --help
+      ## DATA DRIFT ONLY
+      read -rp "Reference dataset path [default: ./artifacts/reference.csv]: " REF_PATH
+      REF_PATH="${REF_PATH:-./artifacts/reference.csv}"
+
+      read -rp "Current dataset path [default: ./artifacts/current.csv]: " CUR_PATH
+      CUR_PATH="${CUR_PATH:-./artifacts/current.csv}"
+
+      run_python main.py --mode drift --ref "$REF_PATH" --current "$CUR_PATH"
       pause
       ;;
     10)
-      ## Show version
+      ## FULL PIPELINE WITH DRIFT
+      read -rp "Input path [default: ./data/input]: " INPUT_PATH
+      INPUT_PATH="${INPUT_PATH:-./data/input}"
+
+      read -rp "Reference dataset path [default: ./artifacts/reference.csv]: " REF_PATH
+      REF_PATH="${REF_PATH:-./artifacts/reference.csv}"
+
+      run_python main.py --mode convert --path "$INPUT_PATH" --with-drift --ref "$REF_PATH"
+      pause
+      ;;
+    11)
+      run_python main.py --help
+      pause
+      ;;
+    12)
       run_python main.py --version
       pause
       ;;

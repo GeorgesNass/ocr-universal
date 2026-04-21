@@ -13,6 +13,7 @@ import argparse
 import os
 import sys
 import time
+import pandas as pd
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +29,7 @@ from src.ocr import (
 
 from src.core.data_consistency import run_data_consistency
 from src.core.data_quality import run_data_quality
+from src.core.data_drift import run_data_drift
 from src.core.config import get_config
 from src.utils.logging_utils import get_logger
 from src.utils.ocr_utils import get_data_dirs, is_allowed_file, generate_unique_filename
@@ -180,6 +182,29 @@ def process_directory(input_dir: Path, output_dir: Path, print_output: bool = Fa
         if file_path.is_file():
             process_single_file(file_path, output_dir, print_output)
 
+    ## DATA DRIFT (post-directory)
+    config = get_config()
+
+    if config.runtime.drift_detection_enabled:
+        ref_path = Path("artifacts/reference.csv")
+        cur_path = Path("artifacts/current.csv")
+
+        if ref_path.exists() and cur_path.exists():
+
+            df_ref = pd.read_csv(ref_path)
+            df_cur = pd.read_csv(cur_path)
+
+            drift_result = run_data_drift(
+                df_ref=df_ref,
+                df_current=df_cur,
+                strict=config.runtime.drift_strict_mode,
+            )
+
+            logger.info(f"Drift score: {drift_result['drift_score']}")
+ 
+            if "evidently_report" in drift_result:
+                logger.info("Evidently report | %s", drift_result["evidently_report"])
+                
     logger.info("Directory processing completed")
 
 ## ============================================================
@@ -248,10 +273,14 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--validate-config", action="store_true")
 
-    parser.add_argument("--mode", type=str, default="api", choices=["convert", "test", "api"])
+    parser.add_argument("--mode", type=str, default="api", choices=["convert", "test", "api", "drift"])
     parser.add_argument("--path", type=str)
     parser.add_argument("--print", action="store_true")
 
+    parser.add_argument("--ref", type=str, default="")
+    parser.add_argument("--current", type=str, default="")
+    parser.add_argument("--with-drift", action="store_true")
+    
     args = parser.parse_args()
 
     try:
@@ -267,6 +296,28 @@ def main() -> int:
 
         dirs = get_data_dirs()
 
+        ## DRIFT
+        if args.mode == "drift":
+            logger.info("Running data drift")
+
+            df_ref = pd.read_csv(args.ref)
+            df_cur = pd.read_csv(args.current)
+
+            config = get_config()
+
+            result = run_data_drift(
+                df_ref=df_ref,
+                df_current=df_cur,
+                strict=config.runtime.drift_strict_mode,
+            )
+
+            logger.info(f"Drift score: {result['drift_score']}")
+            
+            if "evidently_report" in result:
+                logger.info("Evidently report | %s", result["evidently_report"])
+    
+            return EXIT_SUCCESS
+            
         ## CONVERT
         if args.mode == "convert":
             input_path = Path(args.path) if args.path else dirs["input"]
@@ -282,6 +333,28 @@ def main() -> int:
             else:
                 logger.error("Invalid path: %s", input_path)
 
+            if args.with_drift:
+                config = get_config()
+
+                ref_path = Path("artifacts/reference.csv")
+                cur_path = Path("artifacts/current.csv")
+
+                if ref_path.exists() and cur_path.exists():
+
+                    df_ref = pd.read_csv(ref_path)
+                    df_cur = pd.read_csv(cur_path)
+
+                    drift_result = run_data_drift(
+                        df_ref=df_ref,
+                        df_current=df_cur,
+                        strict=config.runtime.drift_strict_mode,
+                    )
+
+                    logger.info(f"Drift score: {drift_result['drift_score']}")
+   
+                    if "evidently_report" in drift_result:
+                        logger.info("Evidently report | %s", drift_result["evidently_report"])
+                        
         ## TEST
         elif args.mode == "test":
             run_tests()

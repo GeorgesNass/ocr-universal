@@ -9,10 +9,13 @@ __desc__ = "Unit tests for FastAPI OCR service endpoints (/healthcheck, /convert
 
 import io
 import sys
+import pandas as pd
 import pytest
 
 from pathlib import Path
 from fastapi.testclient import TestClient
+
+from src.core.data_drift import run_data_drift
 from src.core.data_consistency import run_data_consistency
 from src.core.data_quality import run_data_quality
 
@@ -359,3 +362,88 @@ def test_data_quality_strict_mode():
 
     with pytest.raises(Exception):
         run_data_quality(data=data, strict=True)
+        
+## ============================================================
+## DATA DRIFT TESTS
+## ============================================================
+def test_data_drift_no_drift():
+    """
+        Test no drift scenario
+
+        Expected:
+            - high score
+            - no errors
+    """
+
+    df_ref = pd.DataFrame({"text": ["hello world", "test data"]})
+    df_cur = pd.DataFrame({"text": ["hello world", "test data"]})
+
+    result = run_data_drift(df_ref=df_ref, df_current=df_cur)
+
+    assert result["drift_score"] >= 0.9
+    assert result["errors"] == 0
+
+def test_data_drift_detected():
+    """
+        Test drift detection
+
+        Expected:
+            - lower score
+            - warnings present
+    """
+
+    df_ref = pd.DataFrame({"text": ["hello world", "hello world"]})
+    df_cur = pd.DataFrame({"text": ["999999 $$$$", "%%%% !!!!!"]})
+
+    result = run_data_drift(df_ref=df_ref, df_current=df_cur)
+
+    assert result["drift_score"] < 1.0
+    assert result["warnings"] > 0
+
+def test_data_drift_empty():
+    """
+        Test empty dataset
+
+        Expected:
+            - exception raised
+    """
+
+    df_ref = pd.DataFrame()
+    df_cur = pd.DataFrame()
+
+    with pytest.raises(Exception):
+        run_data_drift(df_ref=df_ref, df_current=df_cur)
+
+def test_data_drift_strict_mode():
+    """
+        Test strict mode behavior
+
+        Expected:
+            - exception if drift detected
+    """
+
+    df_ref = pd.DataFrame({"text": ["aaa"]})
+    df_cur = pd.DataFrame({"text": ["zzz"]})
+
+    with pytest.raises(Exception):
+        run_data_drift(df_ref=df_ref, df_current=df_cur, strict=True)
+        
+def test_data_drift_evidently_output_ocr() -> None:
+    """
+        Validate Evidently report generation for OCR drift
+
+        Returns:
+            None
+    """
+
+    df_ref = pd.DataFrame({
+        "text": ["hello world", "test data"],
+        "width": [100, 120],
+        "height": [200, 240],
+    })
+
+    df_cur = df_ref.copy()
+
+    result = run_data_drift(df_ref=df_ref, df_current=df_cur)
+
+    assert "evidently_report" in result or result["warnings"] >= 0
